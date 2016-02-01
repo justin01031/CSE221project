@@ -138,9 +138,18 @@ static  procedure_overhead(int itera, int para_num){
     
     
 }
+double systemcall_overhead(){
+    return 0;
+}
+double taskcreation_time(){
+    return 0;
+}
+double contextswitch_time(){
+    return 0;
+}
 int main(int argc, const char * argv[]) {
 
     double a=readtime(10);
-    printf("%f",a);
+    printf("%f",a); //shouldn't use printf IO operation slow slow
     return 0;
 }
