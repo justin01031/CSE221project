@@ -43,7 +43,7 @@ static double readtime(int itera){
 }
 
 static double loopreadtime(int itera){// not done
-   /* uint64_t start;
+    uint64_t start;
     uint64_t end;
     uint64_t elapsed;
     static mach_timebase_info_data_t    sTimebaseInfo;
@@ -55,6 +55,8 @@ static double loopreadtime(int itera){// not done
     
     for(int i=0;i<itera;i++){
         start=mach_absolute_time();
+        for (int i=0; i<10000; i++) {
+        }
         end= mach_absolute_time();
         elapsed = end - start;
         uint64_t elapsedNano = elapsed * sTimebaseInfo.numer / sTimebaseInfo.denom;
@@ -62,7 +64,7 @@ static double loopreadtime(int itera){// not done
     }
     double average= total_time/itera;
     
-    return average;*/
+    return average;
     return 0; 
 }
 
