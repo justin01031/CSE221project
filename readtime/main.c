@@ -42,7 +42,7 @@ static double readtime(int itera){
     return average;
 }
 
-static double loopreadtime(int itera){// not done
+static double loopreadtime(int itera){
     uint64_t start;
     uint64_t end;
     uint64_t elapsed;
@@ -55,7 +55,7 @@ static double loopreadtime(int itera){// not done
     
     for(int i=0;i<itera;i++){
         start=mach_absolute_time();
-        for (int i=0; i<10000; i++) {
+        for (int i=0; i<1000; i++) {
         }
         end= mach_absolute_time();
         elapsed = end - start;
@@ -65,7 +65,6 @@ static double loopreadtime(int itera){// not done
     double average= total_time/itera;
     
     return average;
-    return 0; 
 }
 
 static void zero(void){}
@@ -165,7 +164,7 @@ double systemcall_overhead(unsigned long int itera){
     unsigned long int i;
     for (i=0; i<itera; i++) {
         start = mach_absolute_time();
-        (void) getgid();
+        (void) getpid();
         end = mach_absolute_time();
         elapsed = end - start;
         elapsedNano = elapsed * sTimebaseInfo.numer / sTimebaseInfo.denom;
@@ -290,18 +289,25 @@ double contextswitch_time(){
 
 int main(int argc, const char * argv[]) {
 
-    if ( argc < 2 ) {
+/*    if ( argc < 2 ) {
         printf("Usage: ./main $ITERATIONS\n");
         exit(0);
-    }
-    unsigned long int itera = strtoul(argv[1], NULL, 0);
+    }*/
+   // unsigned long int itera = strtoul(argv[1], NULL, 0);
+    int itera=10000000;
     double overhead = 0.0;
 
     /* Measurement Overhead */
-    // overhead = readtime(itera);
-    // printf("%lf nsec\n", overhead); //shouldn't use printf IO operation slow slow
-
+     //overhead = readtime(itera);
+     //printf("%lf nsec\n", overhead); //shouldn't use printf IO operation slow slow
+    overhead= loopreadtime(itera);
+    printf("%lf nsec\n", overhead);
     /* Procedure Call Overhead */
+    //for (int para_num=0; para_num<=8; para_num++) {
+    //    overhead =procedure_overhead(itera,para_num);
+    //    printf("%lf nsec\n", overhead);
+   // }
+   
 
     /* System Call Overhead */
     // overhead = systemcall_overhead(itera);
@@ -316,8 +322,8 @@ int main(int argc, const char * argv[]) {
     // printf("%lf nsec\n", overhead);
 
     /* Context Switch Time */
-    overhead = context_switch_time(itera);
-    printf("%lf nsec\n", overhead);
+  //  overhead = context_switch_time(itera);
+ //   printf("%lf nsec\n", overhead);
 
     return 0;
 }
