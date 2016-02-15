@@ -12,6 +12,8 @@
 #include <mach/mach_time.h>
 #include <sys/types.h>
 #include <pthread.h>
+#include <unistd.h>
+#include <sys/syscall.h>
 
 static double readtime(int itera){
     uint64_t start;
@@ -46,6 +48,7 @@ static double loopreadtime(int itera){
     uint64_t start;
     uint64_t end;
     uint64_t elapsed;
+    int loop_time=10;
     static mach_timebase_info_data_t    sTimebaseInfo;
     double total_time;
     if ( sTimebaseInfo.denom == 0 ) {
@@ -55,7 +58,8 @@ static double loopreadtime(int itera){
     
     for(int i=0;i<itera;i++){
         start=mach_absolute_time();
-        for (int i=0; i<1000; i++) {
+        for (int i=0; i<loop_time; i++) {
+            end= mach_absolute_time();  //can change to any procedure
         }
         end= mach_absolute_time();
         elapsed = end - start;
@@ -157,21 +161,26 @@ double systemcall_overhead(unsigned long int itera){
     /* Toggling the gid doesn't work.
         The first call is much longer. Perhaps try to
         (1) fork a new process on each iteration or
-        (2) use shell script. */
+        (2) use shell script. 
+        (3) http://yarchive.net/comp/linux/getpid_caching.html some method to avoid cache
+     */
     gid_t orig_gid = 20;
     gid_t toggle_gid;
-
+    char buf[10];
+    
     unsigned long int i;
     for (i=0; i<itera; i++) {
         start = mach_absolute_time();
-        (void) getpid();
+        syscall(SYS_getpid);
+        //(void) getppid();
         end = mach_absolute_time();
         elapsed = end - start;
         elapsedNano = elapsed * sTimebaseInfo.numer / sTimebaseInfo.denom;
+        printf("%lf nsec\n", (double) elapsedNano);
         average += elapsedNano;
 
-        toggle_gid = toggle_gid!=0 ? 0 : orig_gid;
-        setgid(toggle_gid);
+        //toggle_gid = toggle_gid!=0 ? 0 : orig_gid;
+        //setgid(toggle_gid);
         // printf("set:%d, get:%d\n",setgid(toggle_gid),getgid());
     }
 
@@ -294,36 +303,37 @@ int main(int argc, const char * argv[]) {
         exit(0);
     }*/
    // unsigned long int itera = strtoul(argv[1], NULL, 0);
-    int itera=10000000;
+    int itera=3;
     double overhead = 0.0;
-
     /* Measurement Overhead */
-     //overhead = readtime(itera);
-     //printf("%lf nsec\n", overhead); //shouldn't use printf IO operation slow slow
-    overhead= loopreadtime(itera);
-    printf("%lf nsec\n", overhead);
+    // overhead = readtime(itera);
+    // printf("%lf nsec\n", overhead); //shouldn't use printf IO operation slow slow
+    //overhead= loopreadtime(itera);
+    //printf("Measurement Overhead %lf nsec\n", overhead);
+    
+    
     /* Procedure Call Overhead */
     //for (int para_num=0; para_num<=8; para_num++) {
     //    overhead =procedure_overhead(itera,para_num);
-    //    printf("%lf nsec\n", overhead);
+    //    printf("Procedure Call Overhead %lf nsec\n", overhead);
    // }
    
 
     /* System Call Overhead */
-    // overhead = systemcall_overhead(itera);
-    // printf("%lf nsec\n", overhead);
+    overhead = systemcall_overhead(itera);
+     printf("System Call Overhead %lf nsec\n", overhead);
 
     /* Process Creation Time */
     // overhead = process_creation_time(itera);
-    // printf("%lf nsec\n", overhead);
+    // printf("Process Creation Time %lf nsec\n", overhead);
 
     /* Kernel Thread Creation Time */
     // overhead = pthread_creation_time(itera);
-    // printf("%lf nsec\n", overhead);
+    // printf("Thread Creation Time %lf nsec\n", overhead);
 
     /* Context Switch Time */
-  //  overhead = context_switch_time(itera);
- //   printf("%lf nsec\n", overhead);
+    // overhead = context_switch_time(itera);
+    // printf("Contest Switch Time %lf nsec\n", overhead);
 
     return 0;
 }
