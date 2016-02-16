@@ -298,14 +298,14 @@ double contextswitch_time_two_pipe(int itera){
 
     uint64_t elapsed;
     uint64_t elapsedNano;
-    double average = 0.0;
     static mach_timebase_info_data_t    sTimebaseInfo;
     double total_time;
     if ( sTimebaseInfo.denom == 0 ) {
         (void) mach_timebase_info(&sTimebaseInfo);
     }
     
-    
+    const char messageChild[] = "C";
+    const char messagePar[]="P";
     for(int i=0;i<itera;i++){
         uint64_t start;
         uint64_t end;
@@ -314,8 +314,7 @@ double contextswitch_time_two_pipe(int itera){
         pid_t pid;
         pipe(pipe1);
         pipe(pipe2);
-        const char messageChild[] = "C";
-        const char messagePar[]="P";
+
         
          /*
           
@@ -335,6 +334,7 @@ double contextswitch_time_two_pipe(int itera){
             char holder[20]="";
             read(pipe1[readout],holder,sizeof(holder));
             write(pipe2[writein], messageChild, sizeof(messageChild));
+            //kill(0,SIGSTOP);
             exit(0);
             
         }
@@ -346,9 +346,8 @@ double contextswitch_time_two_pipe(int itera){
             close(pipe1[readout]);
             char holder[20]="";
             start = mach_absolute_time();
-            write(pipe2[writein], messagePar, sizeof(messagePar));
-            read(pipe1[readout],holder,sizeof(holder));
-            
+            write(pipe1[writein], messagePar, sizeof(messagePar));
+            read(pipe2[readout],holder,sizeof(holder));
             end = mach_absolute_time();
             
         }
@@ -356,7 +355,7 @@ double contextswitch_time_two_pipe(int itera){
         elapsedNano = elapsed * sTimebaseInfo.numer / sTimebaseInfo.denom;
         total_time += elapsedNano;
     }
-    average = total_time/itera;
+    double average = total_time/itera;
     return average/2; //two way need to divide two
 
 }
@@ -370,13 +369,13 @@ double contextswitch_time_one_pipe(int itera){
     if ( sTimebaseInfo.denom == 0 ) {
         (void) mach_timebase_info(&sTimebaseInfo);
     }
-
+    const char message[]="p";
     for(int i=0;i<itera;i++){
         uint64_t start;
         uint64_t end;
         int pipe1[2];
         pipe(pipe1);
-        const char message[]="p";
+
         char holder[20]="";
         start = mach_absolute_time();
         write(pipe1[writein], message, sizeof(message));
@@ -390,9 +389,8 @@ double contextswitch_time_one_pipe(int itera){
     average = total_time/itera;
     return average;
 }
-double contextswitch_time(int itera){
+double contextswitch(int itera){
     return contextswitch_time_two_pipe(itera)-contextswitch_time_one_pipe(itera);
-
 }
 
 
@@ -403,7 +401,7 @@ int main(int argc, const char * argv[]) {
         exit(0);
     }*/
    // unsigned long int itera = strtoul(argv[1], NULL, 0);
-    int itera=3;
+    int itera=100;
     double overhead = 0.0;
     /* Measurement Overhead */
     // overhead = readtime(itera);
@@ -420,8 +418,8 @@ int main(int argc, const char * argv[]) {
    
 
     /* System Call Overhead */
-    overhead = systemcall_overhead(itera);
-     printf("System Call Overhead %lf nsec\n", overhead);
+    //overhead = systemcall_overhead(itera);
+    // printf("System Call Overhead %lf nsec\n", overhead);
 
     /* Process Creation Time */
     // overhead = process_creation_time(itera);
@@ -432,8 +430,8 @@ int main(int argc, const char * argv[]) {
     // printf("Thread Creation Time %lf nsec\n", overhead);
 
     /* Context Switch Time */
-    // overhead = context_switch_time(itera);
-    // printf("Contest Switch Time %lf nsec\n", overhead);
+     overhead = contextswitch(itera);
+     printf("Contest Switch Time %lf nsec\n", overhead);
 
     return 0;
 }
