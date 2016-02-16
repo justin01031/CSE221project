@@ -357,16 +357,42 @@ double contextswitch_time_two_pipe(int itera){
         total_time += elapsedNano;
     }
     average = total_time/itera;
-    return average;
+    return average/2; //two way need to divide two
 
 }
 double contextswitch_time_one_pipe(int itera){
-    //havn't done
-    return 0;
+
+    uint64_t elapsed;
+    uint64_t elapsedNano;
+    double average = 0.0;
+    static mach_timebase_info_data_t    sTimebaseInfo;
+    double total_time;
+    if ( sTimebaseInfo.denom == 0 ) {
+        (void) mach_timebase_info(&sTimebaseInfo);
+    }
+
+    for(int i=0;i<itera;i++){
+        uint64_t start;
+        uint64_t end;
+        int pipe1[2];
+        pipe(pipe1);
+        const char message[]="p";
+        char holder[20]="";
+        start = mach_absolute_time();
+        write(pipe1[writein], message, sizeof(message));
+        read(pipe1[readout],holder,sizeof(holder));
+        end=mach_absolute_time();
+        elapsed = end - start;
+        elapsedNano = elapsed * sTimebaseInfo.numer / sTimebaseInfo.denom;
+        total_time += elapsedNano;
+        
+    }
+    average = total_time/itera;
+    return average;
 }
 double contextswitch_time(int itera){
     return contextswitch_time_two_pipe(itera)-contextswitch_time_one_pipe(itera);
-    //!!!!onepipe_havn't done
+
 }
 
 
