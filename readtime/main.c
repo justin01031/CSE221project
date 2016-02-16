@@ -162,7 +162,7 @@ double systemcall_overhead(unsigned long int itera){
         The first call is much longer. Perhaps try to
         (1) fork a new process on each iteration or
         (2) use shell script. 
-        (3) http://yarchive.net/comp/linux/getpid_caching.html some method to avoid cache
+
      */
     gid_t orig_gid = 20;
     gid_t toggle_gid;
@@ -350,6 +350,7 @@ double contextswitch_time_two_pipe(int itera){
             write(pipe1[writein], messagePar, sizeof(messagePar));
             read(pipe2[readout],holder,sizeof(holder));
             end = mach_absolute_time();
+            wait(0);
             
         }
         elapsed = end - start;
@@ -402,7 +403,7 @@ int main(int argc, const char * argv[]) {
         exit(0);
     }*/
    // unsigned long int itera = strtoul(argv[1], NULL, 0);
-    int itera=100;
+    int itera=500;
     double overhead = 0.0;
     /* Measurement Overhead */
     // overhead = readtime(itera);
