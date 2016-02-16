@@ -340,6 +340,7 @@ double contextswitch_time_two_pipe(int itera){
         }
         else{
             //parent
+            //printf("%d\n",pid);
             /* Parent process closes up write side of pipe2 */
             /* Parent process closes up read side of pipe1 */
             close(pipe2[writein]);
