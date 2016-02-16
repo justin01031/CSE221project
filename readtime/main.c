@@ -291,10 +291,84 @@ double pthread_creation_time(unsigned long int itera){
     average = average/itera;
     return average;
 }
+#define readout 0
+#define writein 1
+double contextswitch_time_two_pipe(int itera){
+    
 
-double contextswitch_time(){
+    uint64_t elapsed;
+    uint64_t elapsedNano;
+    double average = 0.0;
+    static mach_timebase_info_data_t    sTimebaseInfo;
+    double total_time;
+    if ( sTimebaseInfo.denom == 0 ) {
+        (void) mach_timebase_info(&sTimebaseInfo);
+    }
+    
+    
+    for(int i=0;i<itera;i++){
+        uint64_t start;
+        uint64_t end;
+        int pipe1[2];
+        int pipe2[2];
+        pid_t pid;
+        pipe(pipe1);
+        pipe(pipe2);
+        const char messageChild[] = "C";
+        const char messagePar[]="P";
+        
+         /*
+          
+          p |write pipe1  read  |c
+          p |read  pipe2  write |c
+          */
+        if((pid=fork())==-1){
+            perror("fork error");
+            exit(1);
+        }
+        if(pid==0){
+            //child
+            /* Child process closes up write side of pipe1 */
+            /* Child process closes up read side of pipe2 */
+            close(pipe1[writein]);
+            close(pipe2[readout]);
+            char holder[20]="";
+            read(pipe1[readout],holder,sizeof(holder));
+            write(pipe2[writein], messageChild, sizeof(messageChild));
+            exit(0);
+            
+        }
+        else{
+            //parent
+            /* Parent process closes up write side of pipe2 */
+            /* Parent process closes up read side of pipe1 */
+            close(pipe2[writein]);
+            close(pipe1[readout]);
+            char holder[20]="";
+            start = mach_absolute_time();
+            write(pipe2[writein], messagePar, sizeof(messagePar));
+            read(pipe1[readout],holder,sizeof(holder));
+            
+            end = mach_absolute_time();
+            
+        }
+        elapsed = end - start;
+        elapsedNano = elapsed * sTimebaseInfo.numer / sTimebaseInfo.denom;
+        total_time += elapsedNano;
+    }
+    average = total_time/itera;
+    return average;
+
+}
+double contextswitch_time_one_pipe(int itera){
+    //havn't done
     return 0;
 }
+double contextswitch_time(int itera){
+    return contextswitch_time_two_pipe(itera)-contextswitch_time_one_pipe(itera);
+    //!!!!onepipe_havn't done
+}
+
 
 int main(int argc, const char * argv[]) {
 
