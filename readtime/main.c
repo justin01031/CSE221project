@@ -12,6 +12,7 @@
 #include <mach/mach_time.h>
 #include <sys/types.h>
 #include <pthread.h>
+#include <time.h>
 
 static double readtime(int itera){
     uint64_t start;
@@ -157,20 +158,28 @@ double systemcall_overhead(unsigned long int itera){
         The first call is much longer. Perhaps try to
         (1) fork a new process on each iteration or
         (2) use shell script. */
-    gid_t orig_gid = 20;
-    gid_t toggle_gid;
+    // gid_t orig_gid = 20;
+    // gid_t toggle_gid;
+
+    struct timespec ts;
+    ts.tv_sec = 0;
+    ts.tv_nsec = 75000000;
 
     unsigned long int i;
     for (i=0; i<itera; i++) {
+
         start = mach_absolute_time();
         (void) getgid();
         end = mach_absolute_time();
+        
         elapsed = end - start;
         elapsedNano = elapsed * sTimebaseInfo.numer / sTimebaseInfo.denom;
         average += elapsedNano;
+        printf("#%d elapsedNano: %ld\n", i, elapsedNano);
 
-        toggle_gid = toggle_gid!=0 ? 0 : orig_gid;
-        setgid(toggle_gid);
+        nanosleep(&ts, NULL);
+        // toggle_gid = toggle_gid!=0 ? 0 : orig_gid;
+        // setgid(toggle_gid);
         // printf("set:%d, get:%d\n",setgid(toggle_gid),getgid());
     }
 
@@ -228,7 +237,7 @@ double process_creation_time(unsigned long int itera){
         }
     }
 
-    printf("itera ran: %lu\n", itera);
+    // printf("itera ran: %lu\n", itera);
     average = average/itera;
     return average;
 }
@@ -276,7 +285,7 @@ double pthread_creation_time(unsigned long int itera){
 
     }
 
-    printf("itera ran: %lu\n", itera);
+    // printf("itera ran: %lu\n", itera);
     // printf("average: %lf\n", average);
     average = average/itera;
     return average;
@@ -296,8 +305,8 @@ int main(int argc, const char * argv[]) {
     double overhead = 0.0;
 
     /* Measurement Overhead */
-    // overhead = readtime(itera);
-    // printf("%lf nsec\n", overhead); //shouldn't use printf IO operation slow slow
+    overhead = readtime(itera);
+    printf("%lf nsec\n", overhead); //shouldn't use printf IO operation slow slow
 
     /* Procedure Call Overhead */
 
@@ -306,16 +315,16 @@ int main(int argc, const char * argv[]) {
     // printf("%lf nsec\n", overhead);
 
     /* Process Creation Time */
-    // overhead = process_creation_time(itera);
-    // printf("%lf nsec\n", overhead);
+    overhead = process_creation_time(itera);
+    printf("%lf nsec\n", overhead);
 
     /* Kernel Thread Creation Time */
-    // overhead = pthread_creation_time(itera);
-    // printf("%lf nsec\n", overhead);
+    overhead = pthread_creation_time(itera);
+    printf("%lf nsec\n", overhead);
 
     /* Context Switch Time */
-    overhead = context_switch_time(itera);
-    printf("%lf nsec\n", overhead);
+    // overhead = context_switch_time(itera);
+    // printf("%lf nsec\n", overhead);
 
     return 0;
 }
