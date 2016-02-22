@@ -7,7 +7,12 @@
 //
 
 #include <stdio.h>
-
+double readBandwidthTime(){
+    return 0;
+}
+double writeBandwidthTime(){
+    return 0;
+}
 int main(int argc, const char * argv[]) {
     // insert code here...
     printf("Hello, World!\n");
