@@ -13,6 +13,8 @@
 #include <sys/types.h>
 #include <pthread.h>
 #include <time.h>
+#include <unistd.h>
+#include <sys/syscall.h>
 
 static double readtime(int itera){
     uint64_t start;
@@ -43,10 +45,11 @@ static double readtime(int itera){
     return average;
 }
 
-static double loopreadtime(int itera){// not done
-   /* uint64_t start;
+static double loopreadtime(int itera){
+    uint64_t start;
     uint64_t end;
     uint64_t elapsed;
+    int loop_time=10;
     static mach_timebase_info_data_t    sTimebaseInfo;
     double total_time;
     if ( sTimebaseInfo.denom == 0 ) {
@@ -56,6 +59,9 @@ static double loopreadtime(int itera){// not done
     
     for(int i=0;i<itera;i++){
         start=mach_absolute_time();
+        for (int i=0; i<loop_time; i++) {
+            end= mach_absolute_time();  //can change to any procedure
+        }
         end= mach_absolute_time();
         elapsed = end - start;
         uint64_t elapsedNano = elapsed * sTimebaseInfo.numer / sTimebaseInfo.denom;
@@ -63,8 +69,7 @@ static double loopreadtime(int itera){// not done
     }
     double average= total_time/itera;
     
-    return average;*/
-    return 0; 
+    return average;
 }
 
 static void zero(void){}
@@ -169,18 +174,17 @@ double systemcall_overhead(unsigned long int itera){
     for (i=0; i<itera; i++) {
 
         start = mach_absolute_time();
-        (void) getgid();
+        syscall(SYS_getpid);
+        //(void) getppid();
         end = mach_absolute_time();
         
+        //nanosleep(&ts, NULL);
         elapsed = end - start;
         elapsedNano = elapsed * sTimebaseInfo.numer / sTimebaseInfo.denom;
+        printf("%lf nsec\n", (double) elapsedNano);
         average += elapsedNano;
         printf("#%d elapsedNano: %ld\n", i, elapsedNano);
 
-        nanosleep(&ts, NULL);
-        // toggle_gid = toggle_gid!=0 ? 0 : orig_gid;
-        // setgid(toggle_gid);
-        // printf("set:%d, get:%d\n",setgid(toggle_gid),getgid());
     }
 
     average = average/itera;
@@ -290,10 +294,110 @@ double pthread_creation_time(unsigned long int itera){
     average = average/itera;
     return average;
 }
+#define readout 0
+#define writein 1
+double contextswitch_time_two_pipe(int itera){
+    
 
-double contextswitch_time(){
-    return 0;
+    uint64_t elapsed;
+    uint64_t elapsedNano;
+    static mach_timebase_info_data_t    sTimebaseInfo;
+    double total_time;
+    if ( sTimebaseInfo.denom == 0 ) {
+        (void) mach_timebase_info(&sTimebaseInfo);
+    }
+    
+    const char messageChild[] = "C";
+    const char messagePar[]="P";
+    for(int i=0;i<itera;i++){
+        uint64_t start;
+        uint64_t end;
+        int pipe1[2];
+        int pipe2[2];
+        pid_t pid;
+        pipe(pipe1);
+        pipe(pipe2);
+
+        
+         /*
+          
+          p |write pipe1  read  |c
+          p |read  pipe2  write |c
+          */
+        if((pid=fork())==-1){
+            perror("fork error");
+            exit(1);
+        }
+        if(pid==0){
+            //child
+            /* Child process closes up write side of pipe1 */
+            /* Child process closes up read side of pipe2 */
+            close(pipe1[writein]);
+            close(pipe2[readout]);
+            char holder[20]="";
+            read(pipe1[readout],holder,sizeof(holder));
+            write(pipe2[writein], messageChild, sizeof(messageChild));
+            //kill(0,SIGSTOP);
+            exit(0);
+            
+        }
+        else{
+            //parent
+            //printf("%d\n",pid);
+            /* Parent process closes up write side of pipe2 */
+            /* Parent process closes up read side of pipe1 */
+            close(pipe2[writein]);
+            close(pipe1[readout]);
+            char holder[20]="";
+            start = mach_absolute_time();
+            write(pipe1[writein], messagePar, sizeof(messagePar));
+            read(pipe2[readout],holder,sizeof(holder));
+            end = mach_absolute_time();
+            wait(0);
+            
+        }
+        elapsed = end - start;
+        elapsedNano = elapsed * sTimebaseInfo.numer / sTimebaseInfo.denom;
+        total_time += elapsedNano;
+    }
+    double average = total_time/itera;
+    return average/2; //two way need to divide two
+
 }
+double contextswitch_time_one_pipe(int itera){
+
+    uint64_t elapsed;
+    uint64_t elapsedNano;
+    double average = 0.0;
+    static mach_timebase_info_data_t    sTimebaseInfo;
+    double total_time;
+    if ( sTimebaseInfo.denom == 0 ) {
+        (void) mach_timebase_info(&sTimebaseInfo);
+    }
+    const char message[]="p";
+    for(int i=0;i<itera;i++){
+        uint64_t start;
+        uint64_t end;
+        int pipe1[2];
+        pipe(pipe1);
+
+        char holder[20]="";
+        start = mach_absolute_time();
+        write(pipe1[writein], message, sizeof(message));
+        read(pipe1[readout],holder,sizeof(holder));
+        end=mach_absolute_time();
+        elapsed = end - start;
+        elapsedNano = elapsed * sTimebaseInfo.numer / sTimebaseInfo.denom;
+        total_time += elapsedNano;
+        
+    }
+    average = total_time/itera;
+    return average;
+}
+double contextswitch(int itera){
+    return contextswitch_time_two_pipe(itera)-contextswitch_time_one_pipe(itera);
+}
+
 
 int main(int argc, const char * argv[]) {
 
@@ -302,17 +406,24 @@ int main(int argc, const char * argv[]) {
         exit(0);
     }
     unsigned long int itera = strtoul(argv[1], NULL, 0);
+    //int itera=500;
     double overhead = 0.0;
-
     /* Measurement Overhead */
-    overhead = readtime(itera);
-    printf("%lf nsec\n", overhead); //shouldn't use printf IO operation slow slow
-
+    // overhead = readtime(itera);
+    // printf("%lf nsec\n", overhead); //shouldn't use printf IO operation slow slow
+    //overhead= loopreadtime(itera);
+    //printf("Measurement Overhead %lf nsec\n", overhead);
+    
     /* Procedure Call Overhead */
+    //for (int para_num=0; para_num<=8; para_num++) {
+    //    overhead =procedure_overhead(itera,para_num);
+    //    printf("Procedure Call Overhead %lf nsec\n", overhead);
+   // }
+   
 
     /* System Call Overhead */
-    // overhead = systemcall_overhead(itera);
-    // printf("%lf nsec\n", overhead);
+    //overhead = systemcall_overhead(itera);
+    // printf("System Call Overhead %lf nsec\n", overhead);
 
     /* Process Creation Time */
     overhead = process_creation_time(itera);
@@ -323,8 +434,8 @@ int main(int argc, const char * argv[]) {
     printf("%lf nsec\n", overhead);
 
     /* Context Switch Time */
-    // overhead = context_switch_time(itera);
-    // printf("%lf nsec\n", overhead);
+    overhead = contextswitch(itera);
+    printf("Context Switch Time %lf nsec\n", overhead);
 
     return 0;
 }
