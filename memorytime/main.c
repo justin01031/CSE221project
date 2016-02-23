@@ -7,6 +7,7 @@
 //
 
 #include <stdio.h>
+<<<<<<< HEAD
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
@@ -137,6 +138,12 @@ double page_fault_service_time(unsigned long int itera) {
 
 }
 
+double readBandwidthTime(){
+    return 0;
+}
+double writeBandwidthTime(){
+    return 0;
+}
 int main(int argc, const char * argv[]) {
     
     /* Thread Affinity */
