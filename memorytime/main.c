@@ -39,7 +39,7 @@ double mem_access_time(unsigned long int itera) {
 
 	uint64_t start;
 	uint64_t end;
-	double totalNano;
+	double totalCycles;
 
 	int array_stride = 0;
 	for (array_stride=MIN_STRIDE; array_stride<=MAX_STRIDE; array_stride*=2) {
@@ -53,25 +53,25 @@ double mem_access_time(unsigned long int itera) {
 			long int location = 0;
 			unsigned long int i = 0;
 			
-			totalNano = 0.0;
+			totalCycles = 0.0;
 			for (i=0; i<itera; i++) {
 
 				start = rdtsc();
 				end = rdtsc();
-				totalNano -= end - start;
+				totalCycles -= end - start;
 
 				start = rdtsc();
 				int tmp = int_array[location];
 				end = rdtsc();
-				totalNano += end - start;
+				totalCycles += end - start;
 
 				location += array_stride/sizeof(int);
 				location = location % (array_entries/sizeof(int));
 			}
 	 
-			// printf("stride = %d, size = 2^%d, time = %lf, cycles = %lf\n", array_stride, power, totalNano/itera, nano_to_cycle(totalNano/itera));
-			// printf("stride = %d, size = 2^%d, cycles = %lf\n", array_stride, power, totalNano/itera);
-			printf("%d %d %lf\n", array_stride, power, totalNano/itera);
+			// printf("stride = %d, size = 2^%d, time = %lf, cycles = %lf\n", array_stride, power, totalCycles/itera, nano_to_cycle(totalCycles/itera));
+			// printf("stride = %d, size = 2^%d, cycles = %lf\n", array_stride, power, totalCycles/itera);
+			printf("%d %d %lf\n", array_stride, power, totalCycles/itera);
 			free(charArray);
 			flush_cache();
 		}
@@ -87,18 +87,18 @@ double page_fault_service_time(unsigned long int itera) {
 	uint64_t elapsed;
 	double totalCycles;
 
-	unsigned long i = 0;
-
-	/* Mmap */
+	/* Mmap Variables */
 	char *addr;
 	int fd;
 	off_t offset;
 	size_t length;
 	ssize_t s;
+
 	/* Open large file */
 	fd = open("./8gfile", O_RDONLY);
 	offset = 0;
 	length = 8589934592;
+	printf("length+offset: %llu\n", length+offset);
 	addr = mmap(NULL, length + offset, PROT_READ,
                        MAP_PRIVATE, fd, offset);
 	if (addr == MAP_FAILED) {
@@ -108,15 +108,17 @@ double page_fault_service_time(unsigned long int itera) {
 	// strncpy(buffer, addr, 10);
 	// printf("%s\n", buffer);
 	
- 	unsigned int j;
+ 	unsigned long int i, j;
  	char tmp;
 	totalCycles = 0.0;
-	unsigned int page_size = (unsigned int)sysconf(_SC_PAGE_SIZE);
-	printf("sysconf(_SC_PAGE_SIZE): %u\n",page_size);
+	unsigned long int page_size = (unsigned long int)sysconf(_SC_PAGE_SIZE);
+	unsigned long int page_end = (unsigned long int)length;
+	printf("sysconf(_SC_PAGE_SIZE): %lu\n",page_size);
+	printf("page_end: %lu\n",page_end);
 	for (i=0; i<itera; i++) {
-		for (j=0; j<length; j+=page_size) {
+		for (j=0; j<page_end; j+=page_size) {
 
-			// printf("(i,j)= (%lu,%u)\n", i, j);
+			// printf("(i,j)= (%lu,%lu)\n", i, j);
 
 			start = rdtsc();
 			end = rdtsc();
@@ -126,18 +128,16 @@ double page_fault_service_time(unsigned long int itera) {
 			tmp = addr[j];
 			end = rdtsc();
 			totalCycles += end - start;
+
 		}
 	}
-	// printf("%lf cycles avg from %d iterations.\n", totalCycles/(entries/4096), (int)entries/4096);
 	printf("%lf cycles from %lu iterations.\n", totalCycles, itera);
 	printf("%lf cycles per iteration.\n", totalCycles/itera);
+	printf("%lu faults per iteration.\n", page_end/page_size);
+	printf("%lf cycles per page fault.\n", totalCycles/itera/(page_end/page_size));
  
- 
-	// for(i=0; i<MEMORY_LIMIT; i++) {
-	// 	free(arrays[i]);
-	// }
+	munmap(addr, length);
 	return 0.0;
-
 }
 
 double readBandwidthTime(unsigned int arraySizeP){
@@ -228,16 +228,16 @@ int main(int argc, const char * argv[]) {
     double measuredTime = 0.0;
 
     /* Memory Access Time */
-	flush_cache();
-	measuredTime = mem_access_time(itera);
+	// flush_cache();
+	// measuredTime = mem_access_time(itera);
 
 	/* Memory BandWidth */
     // testArraySizeRead(itera, 21, 30);
     // testArraySizeWrite(itera, 21, 30);
     
 	/* Page Fault Servicing Time */
-	// flush_cache();
-	// measuredTime = page_fault_service_time(itera);
+	flush_cache();
+	measuredTime = page_fault_service_time(itera);
 
 	return 0;
 }
