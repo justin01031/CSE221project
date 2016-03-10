@@ -7,7 +7,6 @@
 //
 
 #include <stdio.h>
-<<<<<<< HEAD
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
@@ -21,6 +20,7 @@
 #define MIN_POWER 10
 #define MAX_POWER 26
 #define MEMORY_LIMIT 8000
+#define CACHE_LINE 64
 
 double nano_to_cycle(double nano_sec) {
     return nano_sec*2.7;
@@ -138,12 +138,78 @@ double page_fault_service_time(unsigned long int itera) {
 
 }
 
-double readBandwidthTime(){
-    return 0;
+double readBandwidthTime(unsigned int arraySizeP){
+
+    unsigned int entries = pow(2,arraySizeP);
+    char *testArray = random_char_array(entries);
+    flush_cache();
+    uint64_t start;
+    uint64_t end;
+    uint64_t elapsed;
+    start= rdtsc();
+
+    for (unsigned int i = 0; i < entries; i +=CACHE_LINE ) {
+        char now = testArray[i];
+    }
+    end= rdtsc();
+    free(testArray);
+    elapsed=end-start;
+    double bandwidthInBytePerNSec = (double)entries / (elapsed*0.417);
+    double bandwidthInMBytePerSec = bandwidthInBytePerNSec * pow(10, 9) / pow(2, 20);
+    return bandwidthInMBytePerSec;
 }
-double writeBandwidthTime(){
-    return 0;
+
+double writeBandwidthTime(unsigned int arraySizeP){
+    unsigned int entries = pow(2,arraySizeP);
+    char *testArray = random_char_array(entries);
+    flush_cache();
+    uint64_t start;
+    uint64_t end;
+    uint64_t elapsed;
+    char word='a';
+   
+
+    start= rdtsc();
+
+    for (unsigned int i = 0; i < entries; i +=CACHE_LINE ) {
+         testArray[i]=word;
+    }
+    end= rdtsc();
+    
+    
+    free(testArray);
+    elapsed=end-start;
+    double bandwidthInBytePerNSec = (double)entries / (elapsed*0.417);
+    double bandwidthInMBytePerSec = bandwidthInBytePerNSec * pow(10, 9) / pow(2, 20);
+    return bandwidthInMBytePerSec;
 }
+
+void testArraySizeRead(int itera,int minSize,int maxSize){
+    for(unsigned int arraySizeP=minSize;arraySizeP<=maxSize;arraySizeP++){
+        double bandWidthTime=0;
+        for(int i=0;i<itera;i++){
+            bandWidthTime+=readBandwidthTime(arraySizeP);
+        }
+        printf("bandwidth of %lf MB: %lf Mbytes/sec\n",pow(2,arraySizeP-20),bandWidthTime/itera);
+    }
+    printf("write=========\n");
+
+
+}
+
+void testArraySizeWrite(int itera,int minSize,int maxSize){
+
+    printf("write=========\n");
+     for(unsigned int arraySizeP=minSize;arraySizeP<=maxSize;arraySizeP++){
+         double bandWidthTime=0;
+         for(int i=0;i<itera;i++){
+             bandWidthTime+=writeBandwidthTime(arraySizeP);
+         }
+         printf("bandwidth of %lf MB: %lf Mbytes/sec\n",pow(2,arraySizeP-20),bandWidthTime/itera);
+     }
+  
+}
+
 int main(int argc, const char * argv[]) {
     
     /* Thread Affinity */
@@ -155,13 +221,20 @@ int main(int argc, const char * argv[]) {
               THREAD_AFFINITY_POLICY_COUNT);
 
     
-    unsigned long int itera = strtoul(argv[1], NULL, 0);    
+    //unsigned long int itera = strtoul(argv[1], NULL, 0);
+    int itera=20;
     double measured_time = 0.0;
 
     /* Memory Access Time */
-    flush_cache();
-    measured_time = mem_access_time(itera);
-
+    //flush_cache();
+    //measured_time = mem_access_time(itera);
+    
+    
+    /* Memory BandWidth*/
+    testArraySizeRead(itera, 21, 30);
+  //  testArraySizeWrite(itera, 21, 30);
+    
+    
     /* Page Fault Servicing Time */
     // flush_cache();
     // measured_time = page_fault_service_time(itera);
