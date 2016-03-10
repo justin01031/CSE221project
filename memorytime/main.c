@@ -1,140 +1,142 @@
-//
-//  main.c
-//  memorytime
-//
-//  Created by justin01031 on 2/15/16.
-//  Copyright © 2016 justin01031. All rights reserved.
-//
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
-#include <mach/mach.h>
-#include <mach/mach_time.h>
+
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+
 #include <mach/thread_policy.h>
 #include "timing.c"
-#define MIN_STRIDE 64
-#define MAX_STRIDE 1024
+
+#define MIN_STRIDE 16
+#define MAX_STRIDE 2048
 #define FLUSH_POWER 28
 #define MIN_POWER 10
 #define MAX_POWER 26
 #define MEMORY_LIMIT 8000
 #define CACHE_LINE 64
 
-double nano_to_cycle(double nano_sec) {
-    return nano_sec*2.7;
-}
-
 char* random_char_array(unsigned long long entries) {
+
 	srand((unsigned int)time(NULL));
 	unsigned long long i = 0;
-    unsigned long long arraySize = entries * sizeof(char);
-    char* array = (char*)malloc(arraySize);
-    for (i=0; i<entries; i++) {
-        *(array+i) = rand()%26+'a';
-    }
-    return array;
+	char* array = (char*)malloc(sizeof(char)*entries);
+
+	for (i=0; i<entries; i++) {
+		*(array+i) = rand()%26+'a';
+	}
+	return array;
 }
 
 void flush_cache() {
-	char *char_array = random_char_array(pow((float)2, (int)FLUSH_POWER));
-    free(char_array);
+	char *charArray = random_char_array(pow((float)2, (int)FLUSH_POWER));
+	free(charArray);
 }
 
 double mem_access_time(unsigned long int itera) {
 
-    uint64_t start;
-    uint64_t end;
-    uint64_t elapsed;
-    double elapsedNano;
-    double totalNano;
-    static mach_timebase_info_data_t    sTimebaseInfo;
-    if ( sTimebaseInfo.denom == 0 ) {
-        (void) mach_timebase_info(&sTimebaseInfo);
-    }
+	uint64_t start;
+	uint64_t end;
+	double totalNano;
 
-    int array_stride = 0;
-    for (array_stride=MIN_STRIDE; array_stride<=MAX_STRIDE; array_stride*=2) {
+	int array_stride = 0;
+	for (array_stride=MIN_STRIDE; array_stride<=MAX_STRIDE; array_stride*=2) {
 
-        int power = 0;
-    	for (power=MIN_POWER; power<=MAX_POWER; power++) {
+		int power = 0;
+		for (power=MIN_POWER; power<=MAX_POWER; power++) {
 
-            long int array_entries = pow((float)2, power);
-            char* char_array = random_char_array(array_entries);
-            int* int_array = (int*)char_array;
-            long int location = 0;
-            unsigned long int i = 0;
-            
-            totalNano = 0.0;
-            for (i=0; i<itera; i++) {
+			long int array_entries = pow((float)2, power);
+			char* charArray = random_char_array(array_entries);
+			int* int_array = (int*)charArray;
+			long int location = 0;
+			unsigned long int i = 0;
+			
+			totalNano = 0.0;
+			for (i=0; i<itera; i++) {
 
-                // start = mach_absolute_time();
-                // end = mach_absolute_time();
-                // elapsedNano = elapsed * sTimebaseInfo.numer / sTimebaseInfo.denom;
-                // totalNano -= elapsedNano;
-                start = rdtsc();
-                end = rdtsc();
-                elapsed = end - start;
-                totalNano -= elapsed;
+				start = rdtsc();
+				end = rdtsc();
+				totalNano -= end - start;
 
-                // start = mach_absolute_time();
-                start = rdtsc();
-                int tmp = int_array[location];
-                // end = mach_absolute_time();
-                end = rdtsc();
-                elapsed = end - start;
-                totalNano += elapsed;
-                // elapsedNano = elapsed * sTimebaseInfo.numer / sTimebaseInfo.denom;
-                // totalNano += elapsedNano;
+				start = rdtsc();
+				int tmp = int_array[location];
+				end = rdtsc();
+				totalNano += end - start;
 
-                location += array_stride/sizeof(int);
-                location = location % (array_entries/sizeof(int));
-            }
-     
-            // printf("stride = %d, size = 2^%d, time = %lf, cycles = %lf\n", array_stride, power, totalNano/itera, nano_to_cycle(totalNano/itera));
-            printf("stride = %d, size = 2^%d, cycles = %lf\n", array_stride, power, totalNano/itera);
-            free(char_array);
-            flush_cache();
-        }
-    }
-    return 0.0;
+				location += array_stride/sizeof(int);
+				location = location % (array_entries/sizeof(int));
+			}
+	 
+			// printf("stride = %d, size = 2^%d, time = %lf, cycles = %lf\n", array_stride, power, totalNano/itera, nano_to_cycle(totalNano/itera));
+			// printf("stride = %d, size = 2^%d, cycles = %lf\n", array_stride, power, totalNano/itera);
+			printf("%d %d %lf\n", array_stride, power, totalNano/itera);
+			free(charArray);
+			flush_cache();
+		}
+	}
+	
+	return 0.0;
 }
 
 double page_fault_service_time(unsigned long int itera) {
 
-    uint64_t start;
-    uint64_t end;
-    uint64_t elapsed;
-    double totalCycles;
+	uint64_t start;
+	uint64_t end;
+	uint64_t elapsed;
+	double totalCycles;
 
-    unsigned long i = 0;
-    unsigned long entries = 1024 * 1024;
-    char* arrays[MEMORY_LIMIT];
-    for(i=0; i<MEMORY_LIMIT; i++) {
-        arrays[i] = random_char_array(entries);
-    }
- 
-    totalCycles = 0.0;
-    for(i=0; i<entries; i+=4096){
+	unsigned long i = 0;
 
-        start = rdtsc();
-        end = rdtsc();
-        totalCycles -= end - start;
+	/* Mmap */
+	char *addr;
+	int fd;
+	off_t offset;
+	size_t length;
+	ssize_t s;
+	/* Open large file */
+	fd = open("./8gfile", O_RDONLY);
+	offset = 0;
+	length = 8589934592;
+	addr = mmap(NULL, length + offset, PROT_READ,
+                       MAP_PRIVATE, fd, offset);
+	if (addr == MAP_FAILED) {
+		printf("mmap failed\n");
+	}
+	// char buffer[256];
+	// strncpy(buffer, addr, 10);
+	// printf("%s\n", buffer);
+	
+ 	unsigned int j;
+ 	char tmp;
+	totalCycles = 0.0;
+	unsigned int page_size = (unsigned int)sysconf(_SC_PAGE_SIZE);
+	printf("sysconf(_SC_PAGE_SIZE): %u\n",page_size);
+	for (i=0; i<itera; i++) {
+		for (j=0; j<length; j+=page_size) {
 
-        start = rdtsc();
-        char tmp = arrays[0][i];// + arrays[0][i];
-        end = rdtsc();
-        totalCycles += end - start;
-    }
-    // printf("%lf cycles avg from %d iterations.\n", totalCycles/(entries/4096), (int)entries/4096);
-    printf("%lf cycles from %d iterations.\n", totalCycles, (int)entries/4096);
+			// printf("(i,j)= (%lu,%u)\n", i, j);
+
+			start = rdtsc();
+			end = rdtsc();
+			totalCycles -= end - start;
+
+			start = rdtsc();
+			tmp = addr[j];
+			end = rdtsc();
+			totalCycles += end - start;
+		}
+	}
+	// printf("%lf cycles avg from %d iterations.\n", totalCycles/(entries/4096), (int)entries/4096);
+	printf("%lf cycles from %lu iterations.\n", totalCycles, itera);
+	printf("%lf cycles per iteration.\n", totalCycles/itera);
  
  
-    for(i=0; i<MEMORY_LIMIT; i++) {
-        free(arrays[i]);
-    }
-    return 0.0;
+	// for(i=0; i<MEMORY_LIMIT; i++) {
+	// 	free(arrays[i]);
+	// }
+	return 0.0;
 
 }
 
@@ -182,6 +184,7 @@ double writeBandwidthTime(unsigned int arraySizeP){
     double bandwidthInBytePerNSec = (double)entries / (elapsed*0.417);
     double bandwidthInMBytePerSec = bandwidthInBytePerNSec * pow(10, 9) / pow(2, 20);
     return bandwidthInMBytePerSec;
+
 }
 
 void testArraySizeRead(int itera,int minSize,int maxSize){
@@ -221,23 +224,20 @@ int main(int argc, const char * argv[]) {
               THREAD_AFFINITY_POLICY_COUNT);
 
     
-    //unsigned long int itera = strtoul(argv[1], NULL, 0);
-    int itera=20;
-    double measured_time = 0.0;
+    unsigned long int itera = strtoul(argv[1], NULL, 0);
+    double measuredTime = 0.0;
 
     /* Memory Access Time */
-    //flush_cache();
-    //measured_time = mem_access_time(itera);
-    
-    
-    /* Memory BandWidth*/
-    testArraySizeRead(itera, 21, 30);
-  //  testArraySizeWrite(itera, 21, 30);
-    
-    
-    /* Page Fault Servicing Time */
-    // flush_cache();
-    // measured_time = page_fault_service_time(itera);
+	flush_cache();
+	measuredTime = mem_access_time(itera);
 
-    return 0;
+	/* Memory BandWidth */
+    // testArraySizeRead(itera, 21, 30);
+    // testArraySizeWrite(itera, 21, 30);
+    
+	/* Page Fault Servicing Time */
+	// flush_cache();
+	// measuredTime = page_fault_service_time(itera);
+
+	return 0;
 }
