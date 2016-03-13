@@ -15,6 +15,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/syscall.h>
+#include "timing.c"
 
 static double readtime(int itera){
     uint64_t start;
@@ -34,10 +35,11 @@ static double readtime(int itera){
     
     
     for(int i=0;i<itera;i++){
-        start=mach_absolute_time();
-        end= mach_absolute_time();
+        start=rdtsc();
+        end= rdtsc();
         elapsed = end - start;
-        uint64_t elapsedNano = elapsed * sTimebaseInfo.numer / sTimebaseInfo.denom;
+       // printf("%llu\n",elapsed);
+        uint64_t elapsedNano = elapsed*0.3847;
         total_time += elapsedNano;
     }
     double average= total_time/itera;
@@ -49,7 +51,7 @@ static double loopreadtime(int itera){
     uint64_t start;
     uint64_t end;
     uint64_t elapsed;
-    int loop_time=10;
+    int loop_time=10000;
     static mach_timebase_info_data_t    sTimebaseInfo;
     double total_time;
     if ( sTimebaseInfo.denom == 0 ) {
@@ -58,13 +60,13 @@ static double loopreadtime(int itera){
     
     
     for(int i=0;i<itera;i++){
-        start=mach_absolute_time();
+        start=rdtsc();
         for (int i=0; i<loop_time; i++) {
-            end= mach_absolute_time();  //can change to any procedure
+            end= rdtsc();  //can change to any procedure
         }
-        end= mach_absolute_time();
+        end= rdtsc();
         elapsed = end - start;
-        uint64_t elapsedNano = elapsed * sTimebaseInfo.numer / sTimebaseInfo.denom;
+        uint64_t elapsedNano = elapsed*0.3847/loop_time;
         total_time += elapsedNano;
     }
     double average= total_time/itera;
@@ -86,51 +88,93 @@ static double procedure_overhead(int itera, int para_num){
     uint64_t end;
     uint64_t elapsed;
     static mach_timebase_info_data_t    sTimebaseInfo;
-    double total_time;
+    uint64_t total_elapsed=0;
     if ( sTimebaseInfo.denom == 0 ) {
         (void) mach_timebase_info(&sTimebaseInfo);
     }
-    for (int i=0; i<itera; i++) {
+    int innerloop=25;
+    for (int i=0; i<itera/innerloop; i++) {
         switch (para_num) {
             case 0:
-                start=mach_absolute_time();
-                zero();
-                end= mach_absolute_time();
+                start=rdtsc();
+                for(int j=0;j<innerloop;j++){
+                    zero();
+                    zero();
+                    zero();
+                    zero();
+                }
+                end= rdtsc();
                 break;
             case 1:
-                start=mach_absolute_time();
-                one(0);
-                end= mach_absolute_time();
+                start=rdtsc();
+                for(int j=0;j<innerloop;j++){
+                    one(0);
+                    one(0);
+                    one(0);
+                    one(0);
+                }
+                end= rdtsc();
                 break;
             case 2:
-                start=mach_absolute_time();
-                two(0, 0);
-                end= mach_absolute_time();
+                start=rdtsc();
+                for(int j=0;j<innerloop;j++){
+                    two(0, 0);
+                    two(0, 0);
+                    two(0, 0);
+                    two(0, 0);
+                }
+                end= rdtsc();
                 break;
             case 3:
-                start=mach_absolute_time();
-                three(0, 0, 0);
-                end= mach_absolute_time();
+                start=rdtsc();
+                for(int j=0;j<innerloop;j++){
+                    three(0, 0, 0);
+                    three(0, 0, 0);
+                    three(0, 0, 0);
+                    three(0, 0, 0);
+                    
+                }
+                end= rdtsc();
                 break;
             case 4:
-                start=mach_absolute_time();
-                four(0, 0, 0, 0);
-                end= mach_absolute_time();
+                start=rdtsc();
+                for(int j=0;j<innerloop;j++){
+                    four(0, 0, 0, 0);
+                    four(0, 0, 0, 0);
+                    four(0, 0, 0, 0);
+                    four(0, 0, 0, 0);
+                }
+                end= rdtsc();
                 break;
             case 5:
-                start=mach_absolute_time();
-                five(0, 0, 0, 0, 0);
-                end= mach_absolute_time();
+                start=rdtsc();
+                for(int j=0;j<innerloop;j++){
+                    five(0, 0, 0, 0, 0);
+                    five(0, 0, 0, 0, 0);
+                    five(0, 0, 0, 0, 0);
+                    five(0, 0, 0, 0, 0);
+                }
+                end= rdtsc();
                 break;
             case 6:
-                start=mach_absolute_time();
-                six(0, 0, 0, 0, 0, 0);
-                end= mach_absolute_time();
+                start=rdtsc();
+                for(int j=0;j<innerloop;j++){
+                    six(0, 0, 0, 0, 0, 0);
+                    six(0, 0, 0, 0, 0, 0);
+                    six(0, 0, 0, 0, 0, 0);
+                    six(0, 0, 0, 0, 0, 0);
+                }
+                end= rdtsc();
                 break;
             case 7:
-                start=mach_absolute_time();
-                seven(0, 0, 0, 0, 0, 0, 0);
-                end= mach_absolute_time();
+                start=rdtsc();
+                for(int j=0;j<innerloop;j++){
+                    seven(0, 0, 0, 0, 0, 0, 0);
+                    seven(0, 0, 0, 0, 0, 0, 0);
+                    seven(0, 0, 0, 0, 0, 0, 0);
+                    seven(0, 0, 0, 0, 0, 0, 0);
+                }
+                end= rdtsc();
                 break;
 
             
@@ -140,9 +184,9 @@ static double procedure_overhead(int itera, int para_num){
                 break;
         }
         elapsed = end - start;
-        uint64_t elapsedNano = elapsed * sTimebaseInfo.numer / sTimebaseInfo.denom;
-        total_time += elapsedNano;
+        total_elapsed+=elapsed;
     }
+    double total_time= ((double)(total_elapsed)*0.3847);
     double average= total_time/itera;
     return average;
 }
@@ -152,7 +196,7 @@ double systemcall_overhead(unsigned long int itera){
     uint64_t start;
     uint64_t end;
     uint64_t elapsed;
-    uint64_t elapsedNano;
+    uint64_t total_elapsed=0;
     double average = 0.0;
     static mach_timebase_info_data_t    sTimebaseInfo;
     if ( sTimebaseInfo.denom == 0 ) {
@@ -171,24 +215,50 @@ double systemcall_overhead(unsigned long int itera){
     ts.tv_nsec = 75000000;
 
     unsigned long int i;
-    for (i=0; i<itera; i++) {
+    int innerloop=25;
+    int outerloop=itera/(innerloop*4);
+    for (i=0; i<outerloop; i++) {
 
-        start = mach_absolute_time();
-        syscall(SYS_getpid);
-        //(void) getppid();
-        end = mach_absolute_time();
+        start = rdtsc();
+        //syscall(SYS_getpid);
+        for(int j=0;j<innerloop;j++){
+            syscall(SYS_getpid);
+            syscall(SYS_getpid);
+            syscall(SYS_getpid);
+            syscall(SYS_getpid);
+        }
+        end = rdtsc();
         
         //nanosleep(&ts, NULL);
         elapsed = end - start;
-        elapsedNano = elapsed * sTimebaseInfo.numer / sTimebaseInfo.denom;
-        printf("%lf nsec\n", (double) elapsedNano);
-        average += elapsedNano;
-        printf("#%d elapsedNano: %ld\n", i, elapsedNano);
+        total_elapsed +=elapsed;
+    //    printf("%llu nsec\n", elapsed);
+
 
     }
-
-    average = average/itera;
+    double total_time= ((double)(total_elapsed)*0.3847);
+    average= total_time/itera;
     return average;
+}
+double systemcall_overhead_single_call(unsigned long int itera){
+    
+    uint64_t start;
+    uint64_t end;
+    uint64_t elapsed;
+    uint64_t total_elapsed=0;
+
+
+    
+    start = rdtsc();
+    syscall(SYS_getpid);
+    end=rdtsc();
+    for(int i=0;i<100000;i++){
+        syscall(SYS_getgid);
+    }
+    uint64_t totalcycle=end-start;
+    double total_time= (double)totalcycle*0.387;
+    printf("%f\n", total_time);
+    return total_time;
 }
 
 double process_creation_time(unsigned long int itera){
@@ -209,9 +279,9 @@ double process_creation_time(unsigned long int itera){
     for (i=0; i<itera; i++) {
 
         /* Is this atomic? Can't think of a better way. */
-        start = mach_absolute_time();
+        start = rdtsc();
         child_pid = fork();
-        end = mach_absolute_time();
+        end = rdtsc();
 
         /* If maximum number of processes is reached,
             abort iteration and calculate average as is. */
@@ -255,7 +325,7 @@ double pthread_creation_time(unsigned long int itera){
     uint64_t start;
     uint64_t end;
     uint64_t elapsed;
-    uint64_t elapsedNano;
+    double elapsedNano;
     double average = 0.0;
     static mach_timebase_info_data_t    sTimebaseInfo;
     if ( sTimebaseInfo.denom == 0 ) {
@@ -280,7 +350,7 @@ double pthread_creation_time(unsigned long int itera){
         //     break;
         // }
         elapsed = end - start;
-        elapsedNano = elapsed * sTimebaseInfo.numer / sTimebaseInfo.denom;
+        elapsedNano = (double)(end-start)*0.3847;
         average += elapsedNano;
 
         /* To avoid congestion, join the thread. */
@@ -401,41 +471,46 @@ double contextswitch(int itera){
 
 int main(int argc, const char * argv[]) {
 
-    if ( argc < 2 ) {
+    /*if ( argc < 2 ) {
         printf("Usage: ./main $ITERATIONS\n");
         exit(0);
-    }
-    unsigned long int itera = strtoul(argv[1], NULL, 0);
-    //int itera=500;
+    }*/
+    //unsigned long int itera = strtoul(argv[1], NULL, 0);
+    int itera=100000;
     double overhead = 0.0;
     /* Measurement Overhead */
-    // overhead = readtime(itera);
-    // printf("%lf nsec\n", overhead); //shouldn't use printf IO operation slow slow
-    //overhead= loopreadtime(itera);
-    //printf("Measurement Overhead %lf nsec\n", overhead);
+     //overhead = readtime(itera);
+     //printf("%lf nsec\n", overhead); //shouldn't use printf IO operation slow slow
+   // overhead= loopreadtime(itera);
+   // printf("Measurement Overhead %lf nsec\n", overhead);
     
     /* Procedure Call Overhead */
-    //for (int para_num=0; para_num<=8; para_num++) {
-    //    overhead =procedure_overhead(itera,para_num);
-    //    printf("Procedure Call Overhead %lf nsec\n", overhead);
-   // }
+    /*for (int para_num=0; para_num<=8; para_num++) {
+        overhead =procedure_overhead(itera,para_num);
+        printf("Procedure Call Overhead %lf nsec\n", overhead);
+    }*/
    
 
     /* System Call Overhead */
     //overhead = systemcall_overhead(itera);
-    // printf("System Call Overhead %lf nsec\n", overhead);
+  /*  for(int i=0;i<100000;i++){
+        overhead+=systemcall_overhead_single_call(0);
+    }
+     printf("System Call Overhead %lf nsec\n", overhead);*/
 
     /* Process Creation Time */
     overhead = process_creation_time(itera);
     printf("%lf nsec\n", overhead);
 
     /* Kernel Thread Creation Time */
-    overhead = pthread_creation_time(itera);
-    printf("%lf nsec\n", overhead);
+  //  overhead = pthread_creation_time(itera);
+  //  printf("%lf nsec\n", overhead);
 
     /* Context Switch Time */
-    overhead = contextswitch(itera);
-    printf("Context Switch Time %lf nsec\n", overhead);
+    
+    //!!!!!missing thread swiching!?!?!?!?!
+   // overhead = contextswitch(itera);
+  //  printf("Context Switch Time %lf nsec\n", overhead);
 
     return 0;
 }
