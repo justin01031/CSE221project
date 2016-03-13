@@ -142,7 +142,7 @@ double page_fault_service_time(unsigned long int itera) {
 
 double readBandwidthTime(unsigned int arraySizeP){
 
-    unsigned int entries = pow(2,arraySizeP);
+    unsigned int entries =pow(2,arraySizeP);
     char *testArray = random_char_array(entries);
     flush_cache();
     uint64_t start;

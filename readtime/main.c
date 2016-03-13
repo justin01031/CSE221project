@@ -338,9 +338,9 @@ double pthread_creation_time(unsigned long int itera){
     unsigned long int i;
     for (i=0; i<itera; i++) {
 
-        start = mach_absolute_time();
+        start = rdtsc();
         pt_status = pthread_create(&pthread, NULL, threadProcedure, NULL);
-        end = mach_absolute_time();
+        end = rdtsc();
 
         /* If maximum number of threads is reached,
             abort iteration and calculate average as is. */
@@ -350,7 +350,7 @@ double pthread_creation_time(unsigned long int itera){
         //     break;
         // }
         elapsed = end - start;
-        elapsedNano = (double)(end-start)*0.3847;
+        elapsedNano = elapsed *0.3847;
         average += elapsedNano;
 
         /* To avoid congestion, join the thread. */
@@ -419,15 +419,15 @@ double contextswitch_time_two_pipe(int itera){
             close(pipe2[writein]);
             close(pipe1[readout]);
             char holder[20]="";
-            start = mach_absolute_time();
+            start = rdtsc();
             write(pipe1[writein], messagePar, sizeof(messagePar));
             read(pipe2[readout],holder,sizeof(holder));
-            end = mach_absolute_time();
+            end = rdtsc();
             wait(0);
             
         }
         elapsed = end - start;
-        elapsedNano = elapsed * sTimebaseInfo.numer / sTimebaseInfo.denom;
+        elapsedNano = elapsed * 0.3847;
         total_time += elapsedNano;
     }
     double average = total_time/itera;
@@ -452,12 +452,12 @@ double contextswitch_time_one_pipe(int itera){
         pipe(pipe1);
 
         char holder[20]="";
-        start = mach_absolute_time();
+        start = rdtsc();
         write(pipe1[writein], message, sizeof(message));
         read(pipe1[readout],holder,sizeof(holder));
-        end=mach_absolute_time();
+        end=rdtsc();
         elapsed = end - start;
-        elapsedNano = elapsed * sTimebaseInfo.numer / sTimebaseInfo.denom;
+        elapsedNano = elapsed * 0.3847;
         total_time += elapsedNano;
         
     }
@@ -476,7 +476,7 @@ int main(int argc, const char * argv[]) {
         exit(0);
     }*/
     //unsigned long int itera = strtoul(argv[1], NULL, 0);
-    int itera=100000;
+    int itera=100;
     double overhead = 0.0;
     /* Measurement Overhead */
      //overhead = readtime(itera);
@@ -499,18 +499,18 @@ int main(int argc, const char * argv[]) {
      printf("System Call Overhead %lf nsec\n", overhead);*/
 
     /* Process Creation Time */
-    overhead = process_creation_time(itera);
-    printf("%lf nsec\n", overhead);
+   // overhead = process_creation_time(itera);
+   // printf("%lf nsec\n", overhead);
 
     /* Kernel Thread Creation Time */
-  //  overhead = pthread_creation_time(itera);
-  //  printf("%lf nsec\n", overhead);
+   // overhead = pthread_creation_time(itera);
+   // printf("%lf nsec\n", overhead);
 
     /* Context Switch Time */
     
     //!!!!!missing thread swiching!?!?!?!?!
    // overhead = contextswitch(itera);
-  //  printf("Context Switch Time %lf nsec\n", overhead);
+   // printf("Context Switch Time %lf nsec\n", overhead);
 
     return 0;
 }
