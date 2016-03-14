@@ -38,7 +38,7 @@ static double monotonic_seconds() {
 	return (double) rdtsc() / (double) rdtsc_per_sec;
 }
 
-static double nano_to_cycle(double nano_sec) {
+static double nano_to_cycle(long double nano_sec) {
 	return nano_sec*2.7;
 }
 
@@ -46,15 +46,15 @@ static double cycle_to_nano(uint64_t cycles) {
 	return cycles/2.7;
 }
 
-static double nano_to_milli(double nano_sec) {
+static double nano_to_milli(long double nano_sec) {
 	return nano_sec*pow(10.0,-9)/pow(10.0,-3);
 }
 
-static double nano_to_micro(double nano_sec) {
+static double nano_to_micro(long double nano_sec) {
 	return nano_sec*pow(10.0,-9)/pow(10.0,-6);
 }
 
-static double nano_to_sec(double nano_sec) {
+static double nano_to_sec(long double nano_sec) {
 	return nano_sec*pow(10.0,-9);
 }
 

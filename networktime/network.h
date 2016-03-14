@@ -7,10 +7,13 @@
 
 #include <netdb.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
 
 #include "timing.c"
 
 #define HOST_ADDR "127.0.0.1"
+//#define HOST_ADDR "140.112.30.46"
+//#define HOST_ADDR "140.112.30.42"
 #define SERVER_PORT 3490
 #define BUFFER_SIZE 32768
 

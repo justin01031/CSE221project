@@ -27,19 +27,19 @@ double client(char* msg, int msg_len) {
 	/* Create a socket point */
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	
-	if (sockfd < 0) {
-		perror("ERROR opening socket");
-		exit(1);
-	}
+	// if (sockfd < 0) {
+	// 	perror("ERROR opening socket");
+	// 	exit(1);
+	// }
 	
 	/* Specify server (Loopback or Remote) */
 	portno = SERVER_PORT;
 	server = gethostbyname(HOST_ADDR);
 	
-	if (server == NULL) {
-		fprintf(stderr,"ERROR, no such host\n");
-		exit(0);
-	}
+	// if (server == NULL) {
+	// 	fprintf(stderr,"ERROR, no such host\n");
+	// 	exit(0);
+	// }
 	
 	bzero((char *) &serv_addr, sizeof(serv_addr));
 	serv_addr.sin_family = AF_INET;
@@ -53,6 +53,7 @@ double client(char* msg, int msg_len) {
 	}
 
 	/* Prepare random message */
+	bzero(read_buffer,BUFFER_SIZE);
 	bzero(write_buffer, BUFFER_SIZE);
 	strncpy(write_buffer, msg, sizeof(char)*msg_len);
 
@@ -63,34 +64,42 @@ double client(char* msg, int msg_len) {
 	/* Send message to the server */
 	start = rdtsc();
 	n = write(sockfd, write_buffer, strlen(write_buffer)); //Supposed to be blocking write
+	n = read(sockfd, read_buffer, BUFFER_SIZE-1);
 	end = rdtsc();
 	totalCycles += end - start;
 
-	if (n < 0) {
-		perror("ERROR writing to socket");
-		exit(1);
-	}
-	else {
-		// printf("Random Message: %s\n", write_buffer);
-		// printf("strlen(write_buffer): %d\n", (int)strlen(write_buffer));
-		// printf("Bytes sent: %d\n", n);
-	}
+	// if (n < 0) {
+	// 	perror("ERROR writing to socket");
+	// 	exit(1);
+	// }
+	// else {
+	// 	// printf("Random Message: %s\n", write_buffer);
+	// 	// printf("strlen(write_buffer): %d\n", (int)strlen(write_buffer));
+	// 	printf("Bytes sent: %d\n", n);
+	// }
 	
 	/* Now read server response */
-	bzero(read_buffer,BUFFER_SIZE);
-	n = read(sockfd, read_buffer, BUFFER_SIZE-1);
+	// bzero(read_buffer,BUFFER_SIZE);
+
+	// start = rdtsc();
+	// end = rdtsc();
+	// totalCycles -= end - start;
+
+	// start = rdtsc();
+	// n = read(sockfd, read_buffer, BUFFER_SIZE-1);
+	// end = rdtsc();
+	// totalCycles += end - start;
 	
-	if (n < 0) {
-		perror("ERROR reading from socket");
-		exit(1);
-	}
-	else {
-		// printf("Server Reply: %s \n",read_buffer);
-	}
+	// if (n < 0) {
+	// 	perror("ERROR reading from socket");
+	// 	exit(1);
+	// }
+	// else {
+	// 	printf("Server Reply: %s \n",read_buffer);
+	// }
 	
 	close(sockfd);
 	return cycle_to_nano(totalCycles);
-
 }
 
 double client_connect_overhead() {
@@ -199,7 +208,6 @@ double client_close_overhead() {
 	totalCycles += end - start;
 
 	return cycle_to_nano(totalCycles);
-
 }
 
 double round_trip_time(unsigned long int itera) {

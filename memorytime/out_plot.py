@@ -1,7 +1,7 @@
 import scipy as sp
 import matplotlib.pyplot as plt
 
-out = sp.loadtxt('out_10000')
+out = sp.loadtxt('out_10000000')
 
 ind = sorted(list(set(out[:, 0])))
 
@@ -13,5 +13,8 @@ for i in range(len(ind)):
 plt.xlabel('$log_2$ of Array Size')
 plt.ylabel('Cycles')
 plt.legend(loc=2)
+plt.axvline(15,color='r')
+plt.axvline(18,color='r')
+plt.axvline(21.5,color='r')
 plt.show()
 

@@ -64,7 +64,7 @@ int main(int argc, const char * argv[]) {
 		// 	exit(1);
 		// }
 		// else {
-			// printf("Bytes read: %d\n", n);
+		// 	printf("Bytes read: %d\n", n);
 		// }
 		
 		// printf("Here is the message: %s\n",buffer);
@@ -76,7 +76,7 @@ int main(int argc, const char * argv[]) {
 		// 	exit(1);
 		// }
 		// else {
-			// printf("Bytes written: %d\n", n);
+		// 	printf("Bytes written: %d\n", n);
 		// }
 
 		close(newsockfd);
