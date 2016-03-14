@@ -476,7 +476,7 @@ int main(int argc, const char * argv[]) {
         exit(0);
     }*/
     //unsigned long int itera = strtoul(argv[1], NULL, 0);
-    int itera=100;
+    int itera=100000;
     double overhead = 0.0;
     /* Measurement Overhead */
      //overhead = readtime(itera);
@@ -499,12 +499,12 @@ int main(int argc, const char * argv[]) {
      printf("System Call Overhead %lf nsec\n", overhead);*/
 
     /* Process Creation Time */
-   // overhead = process_creation_time(itera);
-   // printf("%lf nsec\n", overhead);
+    overhead = process_creation_time(itera);
+    printf("%lf nsec\n", overhead);
 
     /* Kernel Thread Creation Time */
-   // overhead = pthread_creation_time(itera);
-   // printf("%lf nsec\n", overhead);
+  //  overhead = pthread_creation_time(itera);
+  //  printf("%lf nsec\n", overhead);
 
     /* Context Switch Time */
     

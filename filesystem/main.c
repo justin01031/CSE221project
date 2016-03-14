@@ -59,7 +59,7 @@ void sizeOfFileCache(char* filePath, int iteraLimit){
     free(buffer);
     //==============function warmup====
 
-    for(int i=0; i<=10;i++){// i different size of file
+    for(int i=0; i<=12;i++){// i different size of file
         char fileFullPath[200]= {0};
         char numBuff[20];
         sprintf(numBuff, "%d", file);
@@ -83,13 +83,15 @@ void sizeOfFileCache(char* filePath, int iteraLimit){
                 printf("Error: no read file\n");
                 return ;
             }
-            totalNano+=end-start;
+            uint64_t elapsed=end-start;
+            if(itera>=3)totalNano+=(double)elapsed;
+            
           //  printf("%llu\n", end-start);
             free(buffer);
             close(filedesc);
         }
        // printf("size = %f, cycles = %lf average read I/O time=%lf\n",pow((float)2,i), totalNano/iteraLimit,totalNano/iteraLimit/pow((float)2,i));
-         printf("size = %f, read I/O time=%lf\n",pow((float)2,i), totalNano/iteraLimit/pow((float)2,i));
+         printf("size = %f, read I/O time=%lf\n",pow((float)2,i), totalNano/((iteraLimit-3)*pow((float)2,i)));
         file++;
     }
 
@@ -164,10 +166,10 @@ void sizeOfFileCacheSpecBaseSize(char* filePath,int stride,int iteraLimit){
     
     
 }
-void getFileSeqRead(char* filePath,int onceReadMB,int iteraLimit){
+void getFileSeqRead(char* filePath,int onceReadKB,int iteraLimit){
     uint64_t start;
     uint64_t end;
-    int onceReadBytes=onceReadMB*1024*1024;
+    int onceReadBytes=onceReadKB*1024;
     char fileName[10] = ".tmp";
     int file=0;
     //==============function warmup====
@@ -212,6 +214,7 @@ void getFileSeqRead(char* filePath,int onceReadMB,int iteraLimit){
                 return ;
             }
             pos+=(int)(bytesRead);
+            
             totalNano+=end-start;
             //printf("%d\n",pos);
             //printf("%s\n",buffer);
@@ -228,13 +231,13 @@ void getFileSeqRead(char* filePath,int onceReadMB,int iteraLimit){
         close(filedesc);
         free(buffer);
         // printf("size = %f, cycles = %lf average read I/O time=%lf\n",pow((float)2,i), totalNano/iteraLimit,totalNano/iteraLimit/pow((float)2,i));
-        printf("size = %fMB, read I/O time=%lf\n",pow((float)2,i), totalNano/iteraLimit);
+        printf("size = %fMB, read I/O time=%lf\n",pow((float)2,i), totalNano/iteraLimit/onceReadKB);
         file++;
     }
     
     
 }
-void getFileRanRead(char* filePath,int  onceReadMB,int iteraLimit){
+void getFileRanRead(char* filePath,int  onceReadKB,int iteraLimit){
     uint64_t start;
     uint64_t end;
     
@@ -263,7 +266,7 @@ void getFileRanRead(char* filePath,int  onceReadMB,int iteraLimit){
         strcat(fileFullPath, fileName);
         
         
-        int onceReadByte=onceReadMB*1024*1024;
+        int onceReadByte=onceReadKB*1024;
         int fileSize=1024*1024*pow((float)2,i);
         int totalStep = fileSize/onceReadByte;
         char* buffer=(char*)malloc(onceReadByte);
@@ -277,6 +280,7 @@ void getFileRanRead(char* filePath,int  onceReadMB,int iteraLimit){
         for(int itera=0;itera<iteraLimit;itera++){
             int pos= abs((rand()*RAND_MAX + rand()))%totalStep;
             lseek(filedesc, pos*onceReadByte, SEEK_SET);
+            fcntl( filedesc,F_NOCACHE);
             start = rdtsc();
             ssize_t bytesRead=read(filedesc,buffer,onceReadByte);
             end = rdtsc();
@@ -293,14 +297,97 @@ void getFileRanRead(char* filePath,int  onceReadMB,int iteraLimit){
         close(filedesc);
         free(buffer);
         // printf("size = %f, cycles = %lf average read I/O time=%lf\n",pow((float)2,i), totalNano/iteraLimit,totalNano/iteraLimit/pow((float)2,i));
-        printf("size = %fMB, read I/O time=%lf\n",pow((float)2,i), totalNano/iteraLimit);
+        printf("size = %fMB, read I/O time=%lf\n",pow((float)2,i), totalNano/iteraLimit/onceReadKB);
         file++;
     }
     
     
 }
 
+void contention(char* filePath,int iteraLimit, int fileSizeKB,processnum){
+    int i=0;
+    pid_t parent_pid=getpid();
+    pid_t pid=fork();
+    for(i=0; i<processnum; i++) {
+        if(pid==0){
+           // strcat(filePath, i);
+            char numbuffer[3];
+             sprintf(numbuffer, "%d", i);
+            char fileFullPath[200]= {0};
+            strcat(fileFullPath, filePath);
+            strcat(fileFullPath,numbuffer);
+            strcat(fileFullPath, ".tmp");
+            printf("Im a child pid is %d going to access%s \n",getpid(),fileFullPath);
+            int filedesc = open(fileFullPath, O_RDONLY);
+            fcntl( filedesc,F_NOCACHE);
+            char* buffer=(char*)malloc(1000);
+            int k=0;
+            while (k<10) {
+                ssize_t bytesRead=read(filedesc,buffer,1000);
+                //printf("%s\n",buffer);
+                if(bytesRead<0){
+                    printf("read error\n");
+                    break;
+                }
+                lseek(filedesc, 0, SEEK_SET);
+                k++;
+            }
+            free(buffer);
+            
+            close(filedesc);
+            return;
+        }
+        else{
+            pid=fork();
+        }
+        
+    }
+    if(getpid()==parent_pid){
+        char fileFullPath[200]= {0};
+        strcat(fileFullPath, filePath);
+        strcat(fileFullPath, "parent.tmp");
+        int filedesc = open(fileFullPath, O_RDONLY);
+        fcntl( filedesc,F_NOCACHE);
+        int fileSizeByte=fileSizeKB*1024;
+        int fileSize=1024*1024*4;
+        uint64_t start;
+        uint64_t end;
+        long long int pos = 0;
+        double  totalNano = 0.0;
+        char* buffer=(char*)malloc(fileSizeByte);
+        for(int itera=0;itera<iteraLimit;itera++){
+            
+            start = rdtsc();
+            ssize_t bytesRead=read(filedesc,buffer,fileSizeByte);
+            end = rdtsc();
+            if(bytesRead<=0) {
+                printf("Error: no read file\n");
+                return ;
+            }
+            pos+=(int)(bytesRead);
+            
+            totalNano+=end-start;
+            printf("%s\n",buffer);
+            if(fileSize-pos<fileSizeByte){
+                int holder= lseek(filedesc, 0, SEEK_SET);
+                if(holder<0){
+                    printf("Error: descriptor error\n");
+                    return ;
+                }
+            }
+        }
+        close(filedesc);
+        free(buffer);
+        // printf("size = %f, cycles = %lf average read I/O time=%lf\n",pow((float)2,i), totalNano/iteraLimit,totalNano/iteraLimit/pow((float)2,i));
+        printf("size = %fMB, read I/O time=%lf\n",pow((float)2,i), totalNano/iteraLimit/fileSizeKB);
+    }
+    
 
+
+
+    
+    
+}
 
 
 int main(int argc, const char * argv[]) {
@@ -313,15 +400,18 @@ int main(int argc, const char * argv[]) {
     //sizeOfFileCacheSpecBaseSize("/Users/justin01031/UCSD/2016winter/CSE221/CSE221project/filesystem/TestFile/",512,10000);
     
     //File read time:
-    //getFileSeqRead("/Users/justin01031/UCSD/2016winter/CSE221/CSE221project/filesystem/TestFile/",1,10000);
-    //getFileRanRead("/Users/justin01031/UCSD/2016winter/CSE221/CSE221project/filesystem/TestFile/",1,10000);
+    //getFileSeqRead("/Users/justin01031/UCSD/2016winter/CSE221/CSE221project/filesystem/TestFile/",256,10000);
+   // getFileRanRead("/Users/justin01031/UCSD/2016winter/CSE221/CSE221project/filesystem/TestFile/",256,10000);
     
     //Remote File Read time
     //need to map to remote server
+    //getFileSeqRead("/Volumes/Shared Directory",256,10000);
+  //  getFileRanRead("/Volumes/Shared Directory",256,10000);
     
     //
     
     //contention
+    contention("/Users/justin01031/UCSD/2016winter/CSE221/CSE221project/filesystem/ContTestFile/",10000,256,3);
     return 0;
 }
 

@@ -18,6 +18,8 @@
 #define MEMORY_LIMIT 8000
 #define CACHE_LINE 64
 
+
+
 char* random_char_array(unsigned long long entries) {
 
 	srand((unsigned int)time(NULL));
@@ -224,7 +226,8 @@ int main(int argc, const char * argv[]) {
               THREAD_AFFINITY_POLICY_COUNT);
 
     
-    unsigned long int itera = strtoul(argv[1], NULL, 0);
+ //   unsigned long int itera = strtoul(argv[1], NULL, 0);
+    unsigned long int itera=100000;
     double measuredTime = 0.0;
 
     /* Memory Access Time */
