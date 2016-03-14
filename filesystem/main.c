@@ -304,7 +304,7 @@ void getFileRanRead(char* filePath,int  onceReadKB,int iteraLimit){
     
 }
 
-void contention(char* filePath,int iteraLimit, int fileSizeKB,processnum){
+void contention(char* filePath,int iteraLimit, int onceReadKB,processnum){
     int i=0;
     pid_t parent_pid=getpid();
     pid_t pid=fork();
@@ -317,12 +317,12 @@ void contention(char* filePath,int iteraLimit, int fileSizeKB,processnum){
             strcat(fileFullPath, filePath);
             strcat(fileFullPath,numbuffer);
             strcat(fileFullPath, ".tmp");
-            printf("Im a child pid is %d going to access%s \n",getpid(),fileFullPath);
+           // printf("Im a child pid is %d going to access%s \n",getpid(),fileFullPath);
             int filedesc = open(fileFullPath, O_RDONLY);
             fcntl( filedesc,F_NOCACHE);
             char* buffer=(char*)malloc(1000);
             int k=0;
-            while (k<10) {
+            while (k<1000000) {
                 ssize_t bytesRead=read(filedesc,buffer,1000);
                 //printf("%s\n",buffer);
                 if(bytesRead<0){
@@ -335,6 +335,7 @@ void contention(char* filePath,int iteraLimit, int fileSizeKB,processnum){
             free(buffer);
             
             close(filedesc);
+            printf("child end\n");
             return;
         }
         else{
@@ -343,22 +344,28 @@ void contention(char* filePath,int iteraLimit, int fileSizeKB,processnum){
         
     }
     if(getpid()==parent_pid){
-        char fileFullPath[200]= {0};
-        strcat(fileFullPath, filePath);
-        strcat(fileFullPath, "parent.tmp");
-        int filedesc = open(fileFullPath, O_RDONLY);
-        fcntl( filedesc,F_NOCACHE);
-        int fileSizeByte=fileSizeKB*1024;
-        int fileSize=1024*1024*4;
         uint64_t start;
         uint64_t end;
-        long long int pos = 0;
+        char fileFullPath[200]= {0};
+        char numBuff[20];
+        strcat(fileFullPath, filePath);
+        strcat(fileFullPath,"parent.tmp");
+
+        
+        int onceReadBytes=onceReadKB*1024;
+        int fileSize=1024*1024*4;
+        char* buffer=(char*)malloc(onceReadBytes);
+        //  printf("file path is:\n %s\n",fileFullPath);
+        // printf("start to read the file size= %d \n ",fileSize);
         double  totalNano = 0.0;
-        char* buffer=(char*)malloc(fileSizeByte);
+        long long int pos = 0;
+        int filedesc = open(fileFullPath, O_RDONLY );
+        fcntl( filedesc,F_NOCACHE);   //disable the file cache
+        
         for(int itera=0;itera<iteraLimit;itera++){
             
             start = rdtsc();
-            ssize_t bytesRead=read(filedesc,buffer,fileSizeByte);
+            ssize_t bytesRead=read(filedesc,buffer,onceReadBytes);
             end = rdtsc();
             if(bytesRead<=0) {
                 printf("Error: no read file\n");
@@ -367,19 +374,22 @@ void contention(char* filePath,int iteraLimit, int fileSizeKB,processnum){
             pos+=(int)(bytesRead);
             
             totalNano+=end-start;
-            printf("%s\n",buffer);
-            if(fileSize-pos<fileSizeByte){
+            //printf("%d\n",pos);
+            //printf("%s\n",buffer);
+            //  printf("%llu\n", end-start);
+            if(fileSize-pos<onceReadBytes){
                 int holder= lseek(filedesc, 0, SEEK_SET);
                 if(holder<0){
                     printf("Error: descriptor error\n");
                     return ;
                 }
             }
+            
         }
         close(filedesc);
         free(buffer);
         // printf("size = %f, cycles = %lf average read I/O time=%lf\n",pow((float)2,i), totalNano/iteraLimit,totalNano/iteraLimit/pow((float)2,i));
-        printf("size = %fMB, read I/O time=%lf\n",pow((float)2,i), totalNano/iteraLimit/fileSizeKB);
+        printf("process = %d, read I/O time=%lf\n",processnum, totalNano/iteraLimit/onceReadKB);
     }
     
 
@@ -411,7 +421,8 @@ int main(int argc, const char * argv[]) {
     //
     
     //contention
-    contention("/Users/justin01031/UCSD/2016winter/CSE221/CSE221project/filesystem/ContTestFile/",10000,256,3);
+
+    contention("/Users/justin01031/UCSD/2016winter/CSE221/CSE221project/filesystem/ContTestFile/",10000,256,20);
     return 0;
 }
 

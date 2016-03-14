@@ -295,7 +295,7 @@ double process_creation_time(unsigned long int itera){
             /* Parent */
             // printf("Parent with child %d\n", child_pid);
             elapsed = end - start;
-            elapsedNano = elapsed * sTimebaseInfo.numer / sTimebaseInfo.denom;
+            elapsedNano = elapsed *0.3847;
             average += elapsedNano;
             // printf("End Parent.\n");
 
@@ -434,6 +434,54 @@ double contextswitch_time_two_pipe(int itera){
     return average/2; //two way need to divide two
 
 }
+int pipet1[2];
+int pipet2[2];
+
+void slaveThread(){
+     const char messageChild[] = "C";
+    char holder[20]="";
+    read(pipet1[readout],holder,sizeof(holder));
+    write(pipet2[writein], messageChild, sizeof(messageChild));
+    pthread_exit(0);
+    
+}
+void masterThread(uint64_t *elapsed){
+    uint64_t start,end;
+    char holder[20]="";
+    const char messagePar[]="P";
+    start = rdtsc();
+    write(pipet1[writein], messagePar, sizeof(messagePar));
+    read(pipet2[readout],holder,sizeof(holder));
+    end = rdtsc();
+    *elapsed=end-start;
+    pthread_exit(0);
+    
+}
+void LaunchThread(uint64_t *duration)
+{
+    // Create the thread using POSIX routines.
+    pthread_attr_t  attr;
+    pthread_t       masterThread, slaveThread;
+    int             returnVal;
+    
+    returnVal = pthread_attr_init(&attr);
+    assert(!returnVal);
+    returnVal = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+    assert(!returnVal);
+    returnVal = pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);
+    assert(!returnVal);
+    
+    pthread_create(&masterThread, &attr, masterThread, duration);
+    pthread_create(&slaveThread, &attr, slaveThread, NULL);
+    int result = pthread_join(slaveThread, NULL);
+    assert(!result);
+    result = pthread_join(masterThread, NULL);
+    assert(!result);
+    
+    returnVal = pthread_attr_destroy(&attr);
+    assert(!returnVal);
+
+}
 double contextswitch_time_one_pipe(int itera){
 
     uint64_t elapsed;
@@ -467,7 +515,19 @@ double contextswitch_time_one_pipe(int itera){
 double contextswitch(int itera){
     return contextswitch_time_two_pipe(itera)-contextswitch_time_one_pipe(itera);
 }
-
+double contextswitchthread(int itera){
+    uint64_t elapsed=0;
+    double total_time=0;
+    for (int i=0; i<itera; i++) {
+        pipe(pipet1);
+        pipe(pipet2);
+        LaunchThread(&elapsed);
+        
+        double elapsedNano = elapsed*0.3847/2 ;
+        total_time += elapsedNano;
+    }
+    return total_time;
+}
 
 int main(int argc, const char * argv[]) {
 
@@ -476,7 +536,7 @@ int main(int argc, const char * argv[]) {
         exit(0);
     }*/
     //unsigned long int itera = strtoul(argv[1], NULL, 0);
-    int itera=100000;
+    int itera=1000;
     double overhead = 0.0;
     /* Measurement Overhead */
      //overhead = readtime(itera);
@@ -499,8 +559,8 @@ int main(int argc, const char * argv[]) {
      printf("System Call Overhead %lf nsec\n", overhead);*/
 
     /* Process Creation Time */
-    overhead = process_creation_time(itera);
-    printf("%lf nsec\n", overhead);
+ //   overhead = process_creation_time(itera);
+  //  printf("%lf nsec\n", overhead);
 
     /* Kernel Thread Creation Time */
   //  overhead = pthread_creation_time(itera);
@@ -509,8 +569,9 @@ int main(int argc, const char * argv[]) {
     /* Context Switch Time */
     
     //!!!!!missing thread swiching!?!?!?!?!
-   // overhead = contextswitch(itera);
-   // printf("Context Switch Time %lf nsec\n", overhead);
-
+ //   overhead = contextswitch(itera);
+  //  printf("Context Switch Time %lf nsec\n", overhead);
+    overhead = contextswitchthread(itera);
+    printf("Context Switch Time %lf nsec\n", overhead);
     return 0;
 }

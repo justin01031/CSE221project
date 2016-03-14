@@ -239,8 +239,8 @@ int main(int argc, const char * argv[]) {
     // testArraySizeWrite(itera, 21, 30);
     
 	/* Page Fault Servicing Time */
-	flush_cache();
-	measuredTime = page_fault_service_time(itera);
+	//flush_cache();
+	//measuredTime = page_fault_service_time(itera);
 
 	return 0;
 }
